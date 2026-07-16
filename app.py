@@ -5,6 +5,7 @@ import streamlit as st # grafische Oberfläche
 
 # --- STREAMLIT OBERFLÄCHE ---
 st.title("🌬️ Meine Lüftungs-App")
+st.subheader("🌡️ Temperatur einstellen")
 innen_temp = st.slider("Wie warm ist es aktuell drinnen? (°C)", min_value=7, max_value=40, value=25, step=1)
 
 ## Wetter API
@@ -35,26 +36,14 @@ bewoelkung = wetter_daten["clouds"]["all"]
 
 ## Scoring-System
 score = 0
-if aussen_temp < innen_temp:
-    score += 50 
+if aussen_temp < (innen_temp + 5):
+    score += 60 
 if 210 <= aktueller_azimut <= 342 and bewoelkung < 50: 
-    score -= 25
+    score -= 20
 if taupunkt > 16:
     score -= 20
-if wind_speed > 3 and (wind_richtung <= 10 or wind_richtung >= 245):
-    score += 20
-
-## Streamlit Dashboard
-st.subheader("Aktuelle Daten")
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric("Außentemperatur", f"{round(aussen_temp)} °C")
-    st.caption(f"Windrichtung: {wind_richtung}°") 
-    st.caption(f"Wind: {wind_speed} m/s")
-with col2:
-    st.metric("Innentemperatur", f"{round(innen_temp)} °C")
-    st.caption(f"Azimuth: {round(aktueller_azimut)}°")
-col3.metric("Score", score)
+if wind_speed > 3 and (wind_richtung <= 30 or wind_richtung >= 200):
+    score += 25
 
 st.subheader("Entscheidung")
 if regnet_es and wind_speed > 5 and (wind_richtung <= 10 or wind_richtung >= 245):
@@ -63,3 +52,22 @@ elif score >= 50:
     st.success("✅ Es ist sicher und kühlend. Jetzt lüften!")
 else:
     st.warning("⏳ Besser noch warten, die Bedingungen passen noch nicht.")
+
+## Streamlit Dashboard
+st.subheader("Aktuelle Daten")
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.metric("Außentemperatur", f"{round(aussen_temp)} °C")
+    st.caption(f"Azimuth: {round(aktueller_azimut, 1)}°")
+    st.metric("Score", score)
+with col2:
+    st.metric("Windstärke", f"{wind_speed} m/s")
+    st.metric("Windrichtung", f"{wind_richtung}°")
+with col3:
+    if regnet_es:
+        st.metric("Regen", "Ja")
+    else:
+        st.metric("Regen", "Nein")
+    st.metric("Bewölkung", f"{bewoelkung}%")
+
+
