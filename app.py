@@ -1,39 +1,82 @@
-import requests # internetverbindung für API
-import pandas as pd # Datenanalysen und Tabellen in python
-import pvlib # Bibliothek aus Photovotaik-Forschung
-import streamlit as st # grafische Oberfläche
+import requests
+import pandas as pd
+from pvlib import solarposition
+import streamlit as st
+
+def hole_mvv_sensoren():
+    # Zeitstempel für die API vorbereiten
+    jetzt = pd.Timestamp.now(tz='UTC')
+    vor_einer_stunde = jetzt - pd.Timedelta(hours=1)
+    zeit_bis = jetzt.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+    zeit_von = vor_einer_stunde.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+
+    url = "https://apps.mvvsmartcities.com/api/dashboarddata?accountId=6233165a7faac33eade2c539&id=268b1470-a99b-4244-942e-d8fbdba033ab"
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    }
+    
+    basis_payload = {
+        "from": zeit_von, "to": zeit_bis,
+        "accountId": "6233165a7faac33eade2c539", "orient": "analytics",
+        "timezone": "Europe/Berlin", "appId": "268b1470-a99b-4244-942e-d8fbdba033ab",
+        "entityId": "39465b34-3e8e-e40b-9cfc-fc43b0aa0e60"
+    }
+
+    payload_temp = basis_payload.copy()
+    payload_temp.update({"dashboardTemplateTileId": "b56d6160-6cf4-48fa-be5a-51581216d1a2", "timeseries": [{"timeSeriesId": "536a8e89-34c6-4a23-8bac-dec7ae840ee0", "aggregationFunction": "", "gapFill": "None", "displayName": "Klimasensor, Temperatur", "numDigits": 1, "definitionType": "timeseries"}]})
+    
+    payload_feucht = basis_payload.copy()
+    payload_feucht.update({"dashboardTemplateTileId": "930d05a5-cefe-4dda-9190-db40cf82abbc", "timeseries": [{"timeSeriesId": "de1bedd9-1b2c-40ea-8434-ca7895362ef3", "aggregationFunction": "", "gapFill": "None", "displayName": "Klimasensor, Luftfeuchtigkeit", "numDigits": 0, "definitionType": "timeseries"}]})
+    
+    payload_wind = basis_payload.copy()
+    payload_wind.update({"dashboardTemplateTileId": "13c34302-b5e3-433c-8602-aed08d7cf390", "timeseries": [{"timeSeriesId": "af7132bc-38e7-425f-8695-a8a94701a4b6", "aggregationFunction": "", "gapFill": "None", "displayName": " 2305LW012, Durchschn. Windgeschwindigkeit", "displayDigits": 1, "definitionType": "timeseries"}]})
+
+    try:
+        temp = requests.post(url, headers=headers, json=payload_temp).json()[0]['indicator']
+        feucht = requests.post(url, headers=headers, json=payload_feucht).json()[0]['indicator']
+        wind = requests.post(url, headers=headers, json=payload_wind).json()[0]['indicator']
+        return temp, feucht, wind
+    except Exception as e:
+        return None, None, None
 
 # --- STREAMLIT OBERFLÄCHE ---
 st.title("🌬️ Meine Lüftungs-App")
 st.subheader("🌡️ Temperatur einstellen")
 innen_temp = st.slider("Wie warm ist es aktuell drinnen? (°C)", min_value=7, max_value=40, value=25, step=1)
 
-## Wetter API
-API_KEY = "9ee7e41d71cdbf876ad44bca100bdc86"  # <-- WICHTIG: Tausche das gegen deinen OpenWeatherMap-Schlüssel
-STADT = "Mannheim"
-url = f"http://api.openweathermap.org/data/2.5/weather?q={STADT}&appid={API_KEY}&units=metric&lang=de"
-antwort = requests.get(url)
-if antwort.status_code == 200:
-    wetter_daten = antwort.json()
-
-#Variablen
 ## Koordinaten & Uhrzeit
-koordinate_lat = 49.4964        ## mein Fenster zeigt nach 302°, https://www.sonnenverlauf.de/#/49.4963,8.4874,19/2026.07.16/13:29/1/1
+koordinate_lat = 49.4964  # mein Fenster zeigt nach 302°
 koordinate_long = 8.4874
 jetzt = pd.Timestamp.now(tz='Europe/Berlin')
 
-## Wetterdaten
-aussen_temp = wetter_daten["main"]["temp"]
-wetter_beschreibung = wetter_daten["weather"][0]["description"]
-sonnen_daten = pvlib.solarposition.get_solarposition(jetzt, koordinate_lat, koordinate_long)
+# 1. Sonnenstand berechnen
+sonnen_daten = solarposition.get_solarposition(jetzt, koordinate_lat, koordinate_long)
 aktueller_azimut = sonnen_daten['azimuth'].iloc[0]
 sonnen_hoehe = sonnen_daten['elevation'].iloc[0]  
+
+# 2. Wetterdaten holen (OpenWeatherMap für Regen/Wolken)
+API_KEY = "9ee7e41d71cdbf876ad44bca100bdc86"
+url_owm = f"http://api.openweathermap.org/data/2.5/weather?lat={koordinate_lat}&lon={koordinate_long}&appid={API_KEY}&units=metric&lang=de"
+antwort_owm = requests.get(url_owm).json()
+
+bewoelkung = antwort_owm['clouds']['all']
+wetter_beschreibung = antwort_owm['weather'][0]['description']
 regnet_es = "regen" in wetter_beschreibung.lower()
-wind_speed = wetter_daten["wind"]["speed"]
-wind_richtung = wetter_daten["wind"]["deg"]
-luftfeuchtigkeit = wetter_daten["main"]["humidity"]
-taupunkt = aussen_temp - ((100-luftfeuchtigkeit)/5)
-bewoelkung = wetter_daten["clouds"]["all"]
+wind_richtung = antwort_owm['wind']['deg']
+
+# 3. Lokale Premium-Daten von der MVV holen
+aussen_temp, aussen_feucht, wind_speed = hole_mvv_sensoren()
+
+# 4. Fallback: Falls MVV down ist, springt OpenWeather ein
+if aussen_temp is None:
+    aussen_temp = antwort_owm['main']['temp']
+    aussen_feucht = antwort_owm['main']['humidity']
+    wind_speed = antwort_owm['wind']['speed']
+
+# 5. Finale Berechnungen 
+taupunkt = aussen_temp - ((100 - aussen_feucht) / 5)
 
 ## Scoring-System
 score = 0
@@ -58,7 +101,7 @@ else:
 st.subheader("Aktuelle Daten")
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.metric("Außentemperatur", f"{round(aussen_temp)} °C")
+    st.metric("Außentemperatur", f"{round(aussen_temp, 1)} °C")
     st.caption(f"Azimuth: {round(aktueller_azimut, 1)}°")
     st.metric("Score", score)
 with col2:
@@ -70,5 +113,3 @@ with col3:
     else:
         st.metric("Regen", "Nein")
     st.metric("Bewölkung", f"{bewoelkung}%")
-
-
