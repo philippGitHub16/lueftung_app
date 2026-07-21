@@ -82,7 +82,7 @@ taupunkt = aussen_temp - ((100 - aussen_feucht) / 5)
 score = 0
 if aussen_temp < (innen_temp + 5):
     score += 60 
-if 260 <= aktueller_azimut <= 342 and sonnen_hoehe > 0 and bewoelkung < 50:
+if 260 <= aktueller_azimut <= 342 and sonnen_hoehe > 0 and bewoelkung < 30:
     score -= 20
 if taupunkt > 16:
     score -= 20
