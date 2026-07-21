@@ -80,14 +80,27 @@ taupunkt = aussen_temp - ((100 - aussen_feucht) / 5)
 
 ## Scoring-System
 score = 0
+
+# 1. Temperatur-Differenz (Das Hauptargument)
 if aussen_temp < (innen_temp + 5):
     score += 60 
+
+# 2. Sonnen-Strahlenschutz (Abzug, wenn die Sonne direkt aufs Fenster knallt)
 if 260 <= aktueller_azimut <= 342 and sonnen_hoehe > 0 and bewoelkung < 30:
     score -= 20
+
+# 3. Schwüle-Faktor (Abzug bei hoher Feuchtigkeit/Taupunkt)
 if taupunkt > 16:
     score -= 20
-if wind_speed > 3 and (wind_richtung <= 30 or wind_richtung >= 200):
+
+# 4. Wind-Turbo (Angepasst an die realistische Stadtsensor-Messung)
+# Da Laternenmast-Sensoren selten über 3 m/s kommen, reicht hier schon leichter Wind ab 0.8 m/s
+if wind_speed > 0.8 and (wind_richtung <= 60 or wind_richtung >= 180):
     score += 25
+
+# 5. NEU: Windstille-Bonus bei Kühle (Wenn es kühl ist, ist Wind egal – frische Luft zieht auch so rein)
+elif wind_speed <= 0.8 and aussen_temp < (innen_temp - 1):
+    score += 20
 
 st.subheader("Entscheidung")
 if regnet_es and wind_speed > 5 and (wind_richtung <= 10 or wind_richtung >= 245):
