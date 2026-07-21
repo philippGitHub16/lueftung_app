@@ -27,6 +27,7 @@ aussen_temp = wetter_daten["main"]["temp"]
 wetter_beschreibung = wetter_daten["weather"][0]["description"]
 sonnen_daten = pvlib.solarposition.get_solarposition(jetzt, koordinate_lat, koordinate_long)
 aktueller_azimut = sonnen_daten['azimuth'].iloc[0]
+sonnen_hoehe = sonnen_daten['elevation'].iloc[0]  
 regnet_es = "regen" in wetter_beschreibung.lower()
 wind_speed = wetter_daten["wind"]["speed"]
 wind_richtung = wetter_daten["wind"]["deg"]
@@ -38,7 +39,7 @@ bewoelkung = wetter_daten["clouds"]["all"]
 score = 0
 if aussen_temp < (innen_temp + 5):
     score += 60 
-if 210 <= aktueller_azimut <= 342 and bewoelkung < 50: 
+if 260 <= aktueller_azimut <= 342 and sonnen_hoehe > 0 and bewoelkung < 50:
     score -= 20
 if taupunkt > 16:
     score -= 20
