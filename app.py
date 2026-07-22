@@ -11,7 +11,7 @@ genai.configure(api_key=GEMINI_API_KEY)
 @st.cache_data(ttl=1800)  # Cacht das KI-Ergebnis für 30 Minuten (schont API & Ladezeit)
 def hole_ki_empfehlung(temp, regen_vorschau, lqi, wind, pollen_zusammenfassung):
     # Generatives Modell auswählen (Flash ist extrem schnell)
-    model = genai.GenerativeModel("gemini-1.5-flash-latest")
+    model = genai.GenerativeModel("gemini-pro")
     
     prompt = f"""
     Du bist ein intelligenter, sympathischer Wetter- und Sport-Coach.
