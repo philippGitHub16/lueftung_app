@@ -179,46 +179,46 @@ with col3:
         st.metric("Regen", "Nein")
     st.metric("Bewölkung", f"{bewoelkung}%")
 
-# --- NUR FÜR DEN TEST: Manueller Regler, um den LQI zu simulieren ---
+# --- LQI-Test-Modus ---
 test_modus = st.checkbox("Test-Modus LQI", value=True)
 if test_modus:
-    # Slider jetzt auf die deutsche Skala von 1 bis 6 angepasst
     simulierter_lqi = st.slider("Simulierter LQI-Wert (UBA Skala)", 1.0, 6.0, float(lqi_wert) if lqi_wert else 2.2, step=0.1)
     aktiver_lqi = simulierter_lqi
 else:
     aktiver_lqi = lqi_wert if lqi_wert else 1.0
-# ------------------------------------------------------------------
 
-# Anpassung an die deutsche UBA-Skala (1 = sehr gut, 6 = sehr schlecht)
-# Bei LQI 1 ist die Opacity 0.0 (klar). Bei LQI 6 ist sie 0.8 (starker grauer Schleier).
+# Nebel-Stärke berechnen (1 = klar, 6 = starker Schleier)
 nebel_staerke = max(0.0, min(((aktiver_lqi - 1) / 5.0) * 0.8, 0.8))
 
-st.markdown(
-    f"""
-    <style>
-    .smog-overlay {{
-        background-color: rgba(120, 120, 120, {nebel_staerke});
-        padding: 20px;
-        border-radius: 10px;
-        transition: background-color 0.3s ease;
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# Der komplette Block als ein zusammenhängendes HTML-Element
+html_code = f"""
+<div style="
+    background-color: rgba(120, 120, 120, {nebel_staerke});
+    padding: 20px;
+    border-radius: 10px;
+    transition: background-color 0.3s ease;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+">
+    <h3 style="margin-top: 0; margin-bottom: 20px; font-family: sans-serif; font-size: 1.5rem; font-weight: 600;">
+        Luftqualität (Friedrichsring)
+    </h3>
+    <div style="display: flex; flex-wrap: wrap; gap: 20px; font-family: sans-serif;">
+        <div style="flex: 1; min-width: 120px;">
+            <div style="font-size: 0.9rem; color: #555; margin-bottom: 5px;">Luftqualitätsindex (LQI)</div>
+            <div style="font-size: 1.8rem; font-weight: bold;">{aktiver_lqi}</div>
+        </div>
+        <div style="flex: 1; min-width: 120px;">
+            <div style="font-size: 0.9rem; color: #555; margin-bottom: 5px;">Stickstoffdioxid (NO₂)</div>
+            <div style="font-size: 1.8rem; font-weight: bold;">{no2_wert if no2_wert else "N/A"} µg/m³</div>
+        </div>
+        <div style="flex: 1; min-width: 120px;">
+            <div style="font-size: 0.9rem; color: #555; margin-bottom: 5px;">Feinstaub (PM₂.₅)</div>
+            <div style="font-size: 1.8rem; font-weight: bold;">{pm25_wert if pm25_wert else "N/A"} µg/m³</div>
+        </div>
+    </div>
+</div>
+"""
 
-# Deine Daten-Anzeige packen wir jetzt in diesen "Smog-Container" ein:
-st.subheader("🏙️ Luftqualität (Friedrichsring)")
-
-with st.container():
-    st.markdown('<div class="smog-overlay">', unsafe_allow_html=True)
-    
-    col_l1, col_l2, col_l3 = st.columns(3)
-    with col_l1:
-        st.metric("Luftqualitätsindex (LQI)", lqi_wert if lqi_wert else "N/A")
-    with col_l2:
-        st.metric("Stickstoffdioxid (NO₂)", f"{no2_wert} µg/m³" if no2_wert else "N/A")
-    with col_l3:
-        st.metric("Feinstaub (PM₂.₅)", f"{pm25_wert} µg/m³" if pm25_wert else "N/A")
-        
-    st.markdown('</div>', unsafe_allow_html=True)
+# HTML im Dashboard ausgeben
+st.markdown(html_code, unsafe_allow_html=True)
