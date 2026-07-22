@@ -104,6 +104,32 @@ def hole_pollenflug():
     except Exception as e:
         return None
 
+def hole_regen_vorhersage(lat, lon):
+    # Kostenloses 15-Minuten-Regenradar von Open-Meteo
+    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&minutely_15=precipitation&timezone=Europe%2FBerlin&forecast_days=1"
+    try:
+        daten = requests.get(url).json()
+        zeiten = pd.to_datetime(daten['minutely_15']['time'])
+        regen = daten['minutely_15']['precipitation']
+        
+        df = pd.DataFrame({'zeit': zeiten, 'regen': regen})
+        
+        # Zeitzone setzen, um sie mit der aktuellen Uhrzeit zu vergleichen
+        df['zeit'] = df['zeit'].dt.tz_localize('Europe/Berlin')
+        jetzt = pd.Timestamp.now(tz='Europe/Berlin')
+        
+        # Wir schneiden die Vergangenheit ab und holen uns die nächsten 4 Viertelstunden
+        df_zukunft = df[df['zeit'] > jetzt].head(4) 
+        regen_vorschau = df_zukunft['regen'].tolist()
+        
+        # Falls um 23:45 Uhr nicht mehr genug Daten für heute da sind, füllen wir mit 0 auf
+        while len(regen_vorschau) < 4:
+            regen_vorschau.append(0.0)
+            
+        return regen_vorschau
+    except Exception as e:
+        return [0.0, 0.0, 0.0, 0.0]
+
 # --- STREAMLIT OBERFLÄCHE ---
 st.title("🌬️ Meine Lüftungs-App")
 st.subheader("🌡️ Temperatur einstellen")
@@ -194,13 +220,45 @@ if pollen_daten:
         pollen_abzug = int(max_belastung * 10)
         score -= pollen_abzug
 
-st.subheader("Entscheidung")
+# --- REGEN-GEFAHREN-ANALYSE ---
+regen_in_15m, regen_in_30m, regen_in_45m, regen_in_60m = hole_regen_vorhersage(koordinate_lat, koordinate_long)
+
+# Dein Fenster zeigt nach 302°. 
+# Wir berechnen, ob der Wind in einem 85°-Winkel von vorne oder der Seite auf das Fenster drückt.
+wind_differenz = abs((wind_richtung - 302 + 180) % 360 - 180)
+wind_weht_ins_fenster = wind_differenz <= 85 
+
+# Es regnet nur rein, wenn der Wind draufsteht UND er stark genug ist (> 2 m/s)
+kann_reinregnen = wind_weht_ins_fenster and wind_speed >= 2.0
+
+regen_alarm_nachricht = None
+
+# Wir prüfen die Niederschlagsmenge (alles ab 0.5 mm ist deutlich spürbar)
+if kann_reinregnen:
+    if regen_in_15m >= 0.5:
+        regen_alarm_nachricht = "🚨 Akute Warnung: In unter 15 Min starker Regen, der direkt aufs Fenster drückt! Schließen!"
+        score -= 100  # Veto: Das Fenster muss zu.
+    elif regen_in_30m >= 0.5:
+        regen_alarm_nachricht = "⚠️ Warnung: In ca. 30 Min zieht Regen aufs Fenster. Im Auge behalten!"
+        score -= 40
+    elif regen_in_60m >= 0.5:
+        regen_alarm_nachricht = "⏱️ Hinweis: In einer Stunde wird Frontal-Regen erwartet."
+        score -= 15
+
+# Die neue smarte Regenwarnung ganz oben priorisieren
+if regen_alarm_nachricht:
+    if "Akute Warnung" in regen_alarm_nachricht:
+        st.error(regen_alarm_nachricht)
+    else:
+        st.warning(regen_alarm_nachricht)
+
+# Dein bisheriger Entscheidungsbaum
 if regnet_es and wind_speed > 5 and (wind_richtung <= 10 or wind_richtung >= 245):
-    st.error("🚨 Not-Aus: Zu starker Regen auf dem Fenster. Schotten dicht!")
+    st.error("🚨 Not-Aus: Es regnet bereits stark auf das Fenster. Schotten dicht!")
 elif score >= 50:
     st.success("✅ Es ist sicher und kühlend. Jetzt lüften!")
 else:
-    st.warning("⏳ Besser noch warten, die Bedingungen passen noch nicht.")
+    st.info("⏳ Besser noch warten, die Bedingungen passen noch nicht perfekt.")
 
 ## Streamlit Dashboard
 st.subheader("Aktuelle Daten")
