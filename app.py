@@ -41,6 +41,55 @@ def hole_mvv_sensoren():
     except Exception as e:
         return None, None, None
 
+def hole_luftqualitaet():
+    jetzt = pd.Timestamp.now(tz='UTC')
+    vor_24h = jetzt - pd.Timedelta(hours=24)
+    zeit_bis = jetzt.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+    zeit_von = vor_24h.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+
+    url = "https://apps.mvvsmartcities.com/api/dashboarddata?accountId=5f6c5c377f1cff0011096a73&id=luftqualitaetsindex_mannheim"
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    }
+    
+    basis_payload = {
+        "from": zeit_von, "to": zeit_bis,
+        "accountId": "5f6c5c377f1cff0011096a73", "orient": "analytics",
+        "timezone": "Europe/Berlin", "appId": "luftqualitaetsindex_mannheim",
+        "entityId": "cc854fd0-68cf-476c-bba6-b7abea28b78c"
+    }
+
+    # 1. Luftqualitätsindex (LQI)
+    payload_lqi = basis_payload.copy()
+    payload_lqi.update({
+        "dashboardTemplateTileId": "cedcb9bd-43f8-412d-9065-a35e1039de48", 
+        "timeseries": [{"timeSeriesId": "ba078a34-c4ea-4413-a095-b6e528a7bfce", "aggregationFunction": "", "gapFill": "None", "displayName": "UBA - Mannheim Friedrichsring, Luftqualitätsindex", "displayDigits": 2, "definitionType": "timeseries"}]
+    })
+    
+    # 2. Stickstoffdioxid (NO2)
+    payload_no2 = basis_payload.copy()
+    payload_no2.update({
+        "dashboardTemplateTileId": "486286c3-5a13-489b-8657-39e735d43929", 
+        "timeseries": [{"timeSeriesId": "de25fb29-a688-4e02-9439-3fe047a717e2", "aggregationFunction": "", "gapFill": "None", "displayName": "UBA - Mannheim Friedrichsring, Stickstoffdioxid NO₂", "displayDigits": 0, "definitionType": "timeseries"}]
+    })
+    
+    # 3. Feinstaub (PM2.5)
+    payload_pm = basis_payload.copy()
+    payload_pm.update({
+        "dashboardTemplateTileId": "af753dcf-f714-4db1-aeb9-5f8026d9be25", 
+        "timeseries": [{"timeSeriesId": "dae5ff37-89b3-4055-b170-441b20957fe9", "aggregationFunction": "", "gapFill": "None", "displayName": "UBA - Mannheim Friedrichsring, Feinstaub PM₂,₅", "displayDigits": 0, "definitionType": "timeseries"}]
+    })
+
+    try:
+        lqi = requests.post(url, headers=headers, json=payload_lqi).json()[0]['indicator']
+        no2 = requests.post(url, headers=headers, json=payload_no2).json()[0]['indicator']
+        pm25 = requests.post(url, headers=headers, json=payload_pm).json()[0]['indicator']
+        return lqi, no2, pm25
+    except Exception as e:
+        return None, None, None
+
 # --- STREAMLIT OBERFLÄCHE ---
 st.title("🌬️ Meine Lüftungs-App")
 st.subheader("🌡️ Temperatur einstellen")
@@ -68,6 +117,9 @@ wind_richtung = antwort_owm['wind']['deg']
 
 # 3. Lokale Premium-Daten von der MVV holen
 aussen_temp, aussen_feucht, wind_speed = hole_mvv_sensoren()
+
+# Luftqualität vom Friedrichsring holen
+lqi_wert, no2_wert, pm25_wert = hole_luftqualitaet()
 
 # 4. Fallback: Falls MVV down ist, springt OpenWeather ein
 if aussen_temp is None:
@@ -126,3 +178,12 @@ with col3:
     else:
         st.metric("Regen", "Nein")
     st.metric("Bewölkung", f"{bewoelkung}%")
+
+st.subheader("🏙️ Luftqualität (Friedrichsring)")
+col_l1, col_l2, col_l3 = st.columns(3)
+with col_l1:
+    st.metric("Luftqualitätsindex (LQI)", lqi_wert if lqi_wert else "N/A")
+with col_l2:
+    st.metric("Stickstoffdioxid (NO₂)", f"{no2_wert} µg/m³" if no2_wert else "N/A")
+with col_l3:
+    st.metric("Feinstaub (PM₂.₅)", f"{pm25_wert} µg/m³" if pm25_wert else "N/A")
