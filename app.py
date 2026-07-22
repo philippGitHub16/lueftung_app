@@ -179,11 +179,40 @@ with col3:
         st.metric("Regen", "Nein")
     st.metric("Bewölkung", f"{bewoelkung}%")
 
+# Dynamische Nebel-Opacity basierend auf dem LQI-Wert berechnen
+# Wenn lqi_wert None ist, setzen wir ihn sicherheitshalber auf 0 (gute Luft)
+aktiver_lqi = lqi_wert if lqi_wert else 0
+
+# Wir skalieren den LQI (0-300+) auf eine Opacity zwischen 0.0 (klar) und 0.6 (sehr neblig/dicht)
+nebel_staerke = min(aktiver_lqi / 400.0, 0.6)
+
+# Das dynamische CSS für den Smog-Effekt injizieren
+st.markdown(
+    f"""
+    <style>
+    .smog-overlay {{
+        background-color: rgba(120, 120, 120, {nebel_staerke});
+        padding: 20px;
+        border-radius: 10px;
+        transition: background-color 0.5s ease;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Deine Daten-Anzeige packen wir jetzt in diesen "Smog-Container" ein:
 st.subheader("🏙️ Luftqualität (Friedrichsring)")
-col_l1, col_l2, col_l3 = st.columns(3)
-with col_l1:
-    st.metric("Luftqualitätsindex (LQI)", lqi_wert if lqi_wert else "N/A")
-with col_l2:
-    st.metric("Stickstoffdioxid (NO₂)", f"{no2_wert} µg/m³" if no2_wert else "N/A")
-with col_l3:
-    st.metric("Feinstaub (PM₂.₅)", f"{pm25_wert} µg/m³" if pm25_wert else "N/A")
+
+with st.container():
+    st.markdown('<div class="smog-overlay">', unsafe_allow_html=True)
+    
+    col_l1, col_l2, col_l3 = st.columns(3)
+    with col_l1:
+        st.metric("Luftqualitätsindex (LQI)", lqi_wert if lqi_wert else "N/A")
+    with col_l2:
+        st.metric("Stickstoffdioxid (NO₂)", f"{no2_wert} µg/m³" if no2_wert else "N/A")
+    with col_l3:
+        st.metric("Feinstaub (PM₂.₅)", f"{pm25_wert} µg/m³" if pm25_wert else "N/A")
+        
+    st.markdown('</div>', unsafe_allow_html=True)
