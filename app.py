@@ -11,7 +11,7 @@ genai.configure(api_key=GEMINI_API_KEY)
 @st.cache_data(ttl=1800)
 def hole_ki_empfehlung(temp, regen_vorschau, lqi, wind, pollen_zusammenfassung):
     # Das aktuelle, funktionierende Modell
-    model = genai.GenerativeModel("gemini-3.5-flash")
+    model = genai.GenerativeModel("gemini-2.0-flash")
     
     prompt = f"""
     Du bist ein intelligenter, sympathischer Wetter- und Sport-Coach.
