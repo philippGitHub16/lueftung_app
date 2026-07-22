@@ -8,9 +8,8 @@ import google.generativeai as genai
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=GEMINI_API_KEY)
 
-@st.cache_data(ttl=1800)  # Cacht das KI-Ergebnis für 30 Minuten (schont API & Ladezeit)
+@st.cache_data(ttl=1800)
 def hole_ki_empfehlung(temp, regen_vorschau, lqi, wind, pollen_zusammenfassung):
-    # Generatives Modell auswählen (Flash ist extrem schnell)
     model = genai.GenerativeModel("gemini-pro")
     
     prompt = f"""
@@ -35,13 +34,12 @@ def hole_ki_empfehlung(temp, regen_vorschau, lqi, wind, pollen_zusammenfassung):
     Bleib locker, motivierend und extrem praxisnah!
     """
     
-   try:
-        # Wir fragen die API direkt, welche Modelle freigeschaltet sind
+    try:
         erlaubte_modelle = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         return f"Erlaubte Modelle: {erlaubte_modelle}"
     except Exception as e:
         return f"System-Fehler: {e}"
-    
+
 def hole_mvv_sensoren():
     # Zeitstempel für die API vorbereiten
     jetzt = pd.Timestamp.now(tz='UTC')
