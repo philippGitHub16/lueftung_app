@@ -236,7 +236,7 @@ html_code = f"""
     margin-bottom: 1rem;
 ">
     <h3 style="margin-top: 0; margin-bottom: 20px; font-family: sans-serif; font-size: 1.5rem; font-weight: 600;">
-        Luftqualität (Friedrichsring)
+        🏙️ Luftqualität (Friedrichsring)
     </h3>
     <div style="display: flex; flex-wrap: wrap; gap: 20px; font-family: sans-serif;">
         <div style="flex: 1; min-width: 120px;">
