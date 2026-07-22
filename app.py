@@ -90,6 +90,20 @@ def hole_luftqualitaet():
     except Exception as e:
         return None, None, None
 
+def hole_pollenflug():
+    url = "https://opendata.dwd.de/climate_environment/health/alerts/s31fg.json"
+    try:
+        antwort = requests.get(url).json()
+        
+        # Wir durchsuchen die DWD-Daten gezielt nach der Region Mannheim (ID 91)
+        for region in antwort['content']:
+            if region['partregion_id'] == 91:
+                return region['Pollen']
+                
+        return None
+    except Exception as e:
+        return None
+
 # --- STREAMLIT OBERFLÄCHE ---
 st.title("🌬️ Meine Lüftungs-App")
 st.subheader("🌡️ Temperatur einstellen")
@@ -154,6 +168,32 @@ if wind_speed > 0.8 and (wind_richtung <= 60 or wind_richtung >= 180):
 elif wind_speed <= 0.8 and aussen_temp < (innen_temp - 1):
     score += 20
 
+# --- Pollenflug-Daten abrufen ---
+pollen_daten = hole_pollenflug()
+pollen_abzug = 0
+relevante_pollen = {}
+
+if pollen_daten:
+    # DWD-Skala in Zahlen übersetzen für die Berechnung
+    belastung_map = {'0': 0, '0-1': 0.5, '1': 1, '1-2': 1.5, '2': 2, '2-3': 2.5, '3': 3}
+    max_belastung = 0
+    
+    for art, daten in pollen_daten.items():
+        heute_str = daten.get('today', '0')
+        if heute_str == '-1': heute_str = '0' # -1 bedeutet "keine Daten"
+        
+        belastung_num = belastung_map.get(heute_str, 0)
+        relevante_pollen[art] = heute_str
+        
+        if belastung_num > max_belastung:
+            max_belastung = belastung_num
+            
+    # Score bestrafen: Ab Stufe 1.5 (mittel) fangen wir an, Punkte abzuziehen.
+    # Stufe 3 (sehr hoch) zieht z.B. 30 Punkte ab und verhindert das Lüften oft komplett.
+    if max_belastung >= 1.5:
+        pollen_abzug = int(max_belastung * 10)
+        score -= pollen_abzug
+
 st.subheader("Entscheidung")
 if regnet_es and wind_speed > 5 and (wind_richtung <= 10 or wind_richtung >= 245):
     st.error("🚨 Not-Aus: Zu starker Regen auf dem Fenster. Schotten dicht!")
@@ -179,13 +219,8 @@ with col3:
         st.metric("Regen", "Nein")
     st.metric("Bewölkung", f"{bewoelkung}%")
 
-# --- LQI-Test-Modus ---
-test_modus = st.checkbox("Test-Modus LQI", value=True)
-if test_modus:
-    simulierter_lqi = st.slider("Simulierter LQI-Wert (UBA Skala)", 1.0, 6.0, float(lqi_wert) if lqi_wert else 2.2, step=0.1)
-    aktiver_lqi = simulierter_lqi
-else:
-    aktiver_lqi = lqi_wert if lqi_wert else 1.0
+# Aktiven LQI sicherstellen (Fallback auf 1.0, falls die API kurz hängt)
+aktiver_lqi = float(lqi_wert) if lqi_wert else 1.0
 
 # Nebel-Stärke berechnen (1 = klar, 6 = starker Schleier)
 nebel_staerke = max(0.0, min(((aktiver_lqi - 1) / 5.0) * 0.8, 0.8))
@@ -222,3 +257,26 @@ html_code = f"""
 
 # HTML im Dashboard ausgeben
 st.markdown(html_code, unsafe_allow_html=True)
+
+st.subheader("🌿 Pollenflug (Mannheim)")
+
+if pollen_daten:
+    # Nur Pollen herausfiltern, die aktuell > 0 sind
+    fliegende_pollen = {art: belastung for art, belastung in relevante_pollen.items() if belastung != '0'}
+    
+    if fliegende_pollen:
+        # Wir erzeugen dynamisch Spalten, maximal 4 in einer Reihe
+        cols = st.columns(4)
+        col_idx = 0
+        
+        for art, belastung in fliegende_pollen.items():
+            with cols[col_idx % 4]:
+                st.metric(art, f"Stufe {belastung}")
+            col_idx += 1
+            
+        if pollen_abzug > 0:
+            st.warning(f"Achtung: Aufgrund der Pollenbelastung wurde der Lüftungs-Score um {pollen_abzug} Punkte gesenkt.")
+    else:
+        st.success("Aktuell kein relevanter Pollenflug. Freies Durchatmen!")
+else:
+    st.info("Pollen-Daten vom DWD werden gerade aktualisiert.")
