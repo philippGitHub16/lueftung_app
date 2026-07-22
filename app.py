@@ -150,6 +150,7 @@ API_KEY = "9ee7e41d71cdbf876ad44bca100bdc86"
 url_owm = f"http://api.openweathermap.org/data/2.5/weather?lat={koordinate_lat}&lon={koordinate_long}&appid={API_KEY}&units=metric&lang=de"
 antwort_owm = requests.get(url_owm).json()
 
+wetter_warnungen = antwort_owm.get('alerts', [])
 bewoelkung = antwort_owm['clouds']['all']
 wetter_beschreibung = antwort_owm['weather'][0]['description']
 regnet_es = "regen" in wetter_beschreibung.lower()
@@ -245,7 +246,10 @@ if kann_reinregnen:
         regen_alarm_nachricht = "⏱️ Hinweis: In einer Stunde wird Frontal-Regen erwartet."
         score -= 15
 
-# Die neue smarte Regenwarnung ganz oben priorisieren
+if wetter_warnungen:
+    for warnung in wetter_warnungen:
+        warn_text = warnung.get('event', 'Unwetterwarnung')
+        st.error(f"🚨 ACHTUNG (Offizielle Warnung): {warn_text}")
 if regen_alarm_nachricht:
     if "Akute Warnung" in regen_alarm_nachricht:
         st.error(regen_alarm_nachricht)
