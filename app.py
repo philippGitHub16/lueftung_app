@@ -39,8 +39,8 @@ def hole_ki_empfehlung(temp, regen_vorschau, lqi, wind, pollen_zusammenfassung):
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return "Der KI-Coach nimmt sich kurz eine Auszeit. Hab trotzdem einen hervorragenden Tag draußen!"
-
+        return f"🚨 System-Fehler: {e}"
+    
 def hole_mvv_sensoren():
     # Zeitstempel für die API vorbereiten
     jetzt = pd.Timestamp.now(tz='UTC')
