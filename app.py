@@ -19,7 +19,7 @@ def hole_ki_empfehlung(temp, regen_vorschau, lqi, wind, pollen_zusammenfassung):
     - Außentemperatur: {temp} °C
     - Regen in den nächsten 60 Minuten: {regen_vorschau} mm
     - Luftqualitätsindex (LQI, Skala 1-6): {lqi}
-    - Windgeschwindigkeit: {wind} m/s
+    - Überregionale Windgeschwindigkeit (wichtig für offene Strecken): {wind} m/s
     - Pollenlage: {pollen_zusammenfassung}
 
     Erstelle daraus eine prägnante, motivierende Tagesempfehlung (maximal 3 Sätze) für mein heutiges Training und Alltag. 
@@ -399,7 +399,7 @@ ki_tipp = hole_ki_empfehlung(
     round(aussen_temp, 1),
     [regen_in_15m, regen_in_30m, regen_in_45m, regen_in_60m],
     aktiver_lqi,
-    wind_speed,
+    antwort_owm['wind']['speed'], 
     pollen_text
 )
 
