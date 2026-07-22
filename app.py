@@ -179,14 +179,20 @@ with col3:
         st.metric("Regen", "Nein")
     st.metric("Bewölkung", f"{bewoelkung}%")
 
-# Dynamische Nebel-Opacity basierend auf dem LQI-Wert berechnen
-# Wenn lqi_wert None ist, setzen wir ihn sicherheitshalber auf 0 (gute Luft)
-aktiver_lqi = lqi_wert if lqi_wert else 0
+# --- NUR FÜR DEN TEST: Manueller Regler, um den LQI zu simulieren ---
+test_modus = st.checkbox("Test-Modus LQI", value=True)
+if test_modus:
+    # Slider jetzt auf die deutsche Skala von 1 bis 6 angepasst
+    simulierter_lqi = st.slider("Simulierter LQI-Wert (UBA Skala)", 1.0, 6.0, float(lqi_wert) if lqi_wert else 2.2, step=0.1)
+    aktiver_lqi = simulierter_lqi
+else:
+    aktiver_lqi = lqi_wert if lqi_wert else 1.0
+# ------------------------------------------------------------------
 
-# Wir skalieren den LQI (0-300+) auf eine Opacity zwischen 0.0 (klar) und 0.6 (sehr neblig/dicht)
-nebel_staerke = min(aktiver_lqi / 400.0, 0.6)
+# Anpassung an die deutsche UBA-Skala (1 = sehr gut, 6 = sehr schlecht)
+# Bei LQI 1 ist die Opacity 0.0 (klar). Bei LQI 6 ist sie 0.8 (starker grauer Schleier).
+nebel_staerke = max(0.0, min(((aktiver_lqi - 1) / 5.0) * 0.8, 0.8))
 
-# Das dynamische CSS für den Smog-Effekt injizieren
 st.markdown(
     f"""
     <style>
@@ -194,7 +200,7 @@ st.markdown(
         background-color: rgba(120, 120, 120, {nebel_staerke});
         padding: 20px;
         border-radius: 10px;
-        transition: background-color 0.5s ease;
+        transition: background-color 0.3s ease;
     }}
     </style>
     """,
