@@ -10,7 +10,7 @@ genai.configure(api_key=GEMINI_API_KEY)
 
 @st.cache_data(ttl=1800)
 def hole_ki_empfehlung(temp, regen_vorschau, lqi, wind, pollen_zusammenfassung):
-    # Wir wechseln auf das aktuelle 3.5-Flash Modell aus deiner Liste
+    # Das aktuelle, funktionierende Modell
     model = genai.GenerativeModel("gemini-3.5-flash")
     
     prompt = f"""
@@ -39,7 +39,7 @@ def hole_ki_empfehlung(temp, regen_vorschau, lqi, wind, pollen_zusammenfassung):
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return f"System-Fehler: {e}"
+        return "Der KI-Coach nimmt sich kurz eine Auszeit. Hab trotzdem einen hervorragenden Tag draußen!"
 
 def hole_mvv_sensoren():
     # Zeitstempel für die API vorbereiten
