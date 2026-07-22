@@ -2,6 +2,44 @@ import requests
 import pandas as pd
 from pvlib import solarposition
 import streamlit as st
+import google.generativeai as genai
+
+# API-Key konfigurieren (Ersetze das durch deinen echten Key)
+GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+genai.configure(api_key=GEMINI_API_KEY)
+
+@st.cache_data(ttl=1800)  # Cacht das KI-Ergebnis für 30 Minuten (schont API & Ladezeit)
+def hole_ki_empfehlung(temp, regen_vorschau, lqi, wind, pollen_zusammenfassung):
+    # Generatives Modell auswählen (Flash ist extrem schnell)
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    
+    prompt = f"""
+    Du bist ein intelligenter, sympathischer Wetter- und Sport-Coach.
+    Hier sind die aktuellen Daten für Mannheim:
+    - Außentemperatur: {temp} °C
+    - Regen in den nächsten 60 Minuten: {regen_vorschau} mm
+    - Luftqualitätsindex (LQI, Skala 1-6): {lqi}
+    - Windgeschwindigkeit: {wind} m/s
+    - Pollenlage: {pollen_zusammenfassung}
+
+    Erstelle daraus eine prägnante, motivierende Tagesempfehlung (maximal 3 Sätze) für mein heutiges Training und Alltag. 
+    
+    Regeln für deine Empfehlung:
+    - Passe die Tipps an meine Sportarten an: Triathlon, Rennradfahren und Trailrunning, Laufen.
+    - Wenn das Wetter matschig oder regnerisch ist und es auf die Trails geht, empfiehl mir meine Brooks Catamount 4 für den besten Grip.
+    - Wenn es trocken ist und schnelle Lauf-Intervalle auf Asphalt anstehen, erwähne meine Hoka Mach 6. 
+    - Wenn perfektes Trail-Wetter herrscht, schlag ruhig vor, dass ich Simon für eine gemeinsame Runde einpacke.
+    - Ist die Luft extrem stickig oder heiß, mahne zur Vorsicht bei der Herzfrequenz oder schlage vor, die Watt-Ziele auf dem Rad etwas nach unten zu korrigieren.
+    - Gib mir auch Hinweise zur normalen Alltagsbekleidung: Sollte ich mich eher wärmer Anziehen (geschlossene Schuhe, lange Hose, Jacken) oder sollte ich mich möglichst leicht und luftig anziehen und dafür mehr auf Sonnenschutz und -creme achten?
+    
+    Bleib locker, motivierend und extrem praxisnah!
+    """
+    
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return "Der KI-Coach nimmt sich kurz eine Auszeit. Hab trotzdem einen hervorragenden Tag draußen!"
 
 def hole_mvv_sensoren():
     # Zeitstempel für die API vorbereiten
@@ -134,6 +172,8 @@ def hole_regen_vorhersage(lat, lon):
 st.title("🌬️ Meine Lüftungs-App")
 st.subheader("🌡️ Temperatur einstellen")
 innen_temp = st.slider("Wie warm ist es aktuell drinnen? (°C)", min_value=7, max_value=40, value=25, step=1)
+
+
 
 ## Koordinaten & Uhrzeit
 koordinate_lat = 49.4964  # mein Fenster zeigt nach 302°
@@ -342,3 +382,25 @@ if pollen_daten:
         st.success("Aktuell kein relevanter Pollenflug. Freies Durchatmen!")
 else:
     st.info("Pollen-Daten vom DWD werden gerade aktualisiert.")
+
+# --- KI-EMPFEHLUNG GENERIEREN ---
+
+# Pollen-Daten für den Prompt als Text aufbereiten
+if 'relevante_pollen' in locals() and relevante_pollen:
+    pollen_text = ", ".join([f"{art}: Stufe {bel}" for art, bel in relevante_pollen.items() if bel != '0'])
+    if not pollen_text:
+        pollen_text = "Keine relevanten Pollen"
+else:
+    pollen_text = "Keine Daten verfügbar"
+
+# KI-Text abrufen
+ki_tipp = hole_ki_empfehlung(
+    round(aussen_temp, 1),
+    [regen_in_15m, regen_in_30m, regen_in_45m, regen_in_60m],
+    aktiver_lqi,
+    wind_speed,
+    pollen_text
+)
+
+# Prominent als Infobox anzeigen
+st.info(f"**KI-Tages-Coach:** {ki_tipp}")
