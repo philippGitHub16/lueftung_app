@@ -204,38 +204,12 @@ st.markdown(
 # Deine Daten-Anzeige packen wir jetzt in diesen "Smog-Container" ein:
 st.subheader("🏙️ Luftqualität (Friedrichsring)")
 
-# --- NUR FÜR DEN TEST: Manueller Regler, um den LQI zu simulieren ---
-test_modus = st.checkbox("🧪 LQI-Test-Modus aktivieren", value=True)
-if test_modus:
-    simulierter_lqi = st.slider("Simulierter LQI-Wert", 0, 500, int(lqi_wert) if lqi_wert else 2)
-    aktiver_lqi = simulierter_lqi
-else:
-    aktiver_lqi = lqi_wert if lqi_wert else 0
-# ------------------------------------------------------------------
-
-# Nebel-Stärke basierend auf dem aktiven (oder simulierten) Wert berechnen
-nebel_staerke = min(aktiver_lqi / 400.0, 0.6)
-
-st.markdown(
-    f"""
-    <style>
-    .smog-overlay {{
-        background-color: rgba(120, 120, 120, {nebel_staerke});
-        padding: 20px;
-        border-radius: 10px;
-        transition: background-color 0.3s ease;
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
 with st.container():
     st.markdown('<div class="smog-overlay">', unsafe_allow_html=True)
     
     col_l1, col_l2, col_l3 = st.columns(3)
     with col_l1:
-        st.metric("Luftqualitätsindex (LQI)", aktiver_lqi)
+        st.metric("Luftqualitätsindex (LQI)", lqi_wert if lqi_wert else "N/A")
     with col_l2:
         st.metric("Stickstoffdioxid (NO₂)", f"{no2_wert} µg/m³" if no2_wert else "N/A")
     with col_l3:
